@@ -22,3 +22,4 @@ code stays consistent with it.
 | 2026-11-11 | Reorder sends active exercises first, archived ones after | Archived rows keep a position; renumbering all of them avoids unique-position clashes |
 | 2026-11-11 | Progress chart drawn with `CustomPainter` | No extra chart dependency for one simple line |
 | 2026-11-11 | Weights typed in the user's unit, stored in kg with 2 decimals | Matches `NUMERIC(6,2)` columns |
+| 2026-11-11 | Demo mode with in-memory repositories when no Supabase settings are given | Cristian asked to run the app without Supabase; the same in-memory repositories back the tests |

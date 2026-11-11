@@ -3,8 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'config/demo_data.dart';
 import 'config/dependencies.dart';
 import 'config/env.dart';
+import 'data/repositories/memory/in_memory_repositories.dart';
 import 'routing/router.dart';
 import 'ui/core/app_theme.dart';
 import 'ui/core/view_models/session_controller.dart';
@@ -13,7 +15,16 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final env = Env.fromBuildTime();
   if (!env.isValid) {
-    runApp(ConfigErrorApp(missing: env.problems));
+    // No Supabase settings: run the offline demo with sample data.
+    final routines = InMemoryRoutineRepository();
+    final workouts = InMemoryWorkoutRepository();
+    await seedDemoData(routines, workouts);
+    runApp(
+      MultiProvider(
+        providers: demoProviders(routines: routines, workouts: workouts),
+        child: const GymTrackerApp(demoMode: true),
+      ),
+    );
     return;
   }
   await Supabase.initialize(
@@ -30,7 +41,10 @@ Future<void> main() async {
 
 /// Root widget: wires the theme and the router together.
 class GymTrackerApp extends StatefulWidget {
-  const GymTrackerApp({super.key});
+  const GymTrackerApp({this.demoMode = false, super.key});
+
+  /// Shows a "DEMO" ribbon: data is kept in memory only.
+  final bool demoMode;
 
   @override
   State<GymTrackerApp> createState() => _GymTrackerAppState();
@@ -52,32 +66,14 @@ class _GymTrackerAppState extends State<GymTrackerApp> {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       routerConfig: _router,
-    );
-  }
-}
-
-/// Shown instead of the app when it was built without its Supabase settings.
-class ConfigErrorApp extends StatelessWidget {
-  const ConfigErrorApp({required this.missing, super.key});
-
-  final List<String> missing;
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              'The app was built without its configuration.\n\n'
-              'Missing or invalid: ${missing.join(', ')}\n\n'
-              'Run it with --dart-define=SUPABASE_URL=... and '
-              '--dart-define=SUPABASE_PUBLISHABLE_KEY=... (see README).',
-            ),
-          ),
-        ),
-      ),
+      debugShowCheckedModeBanner: !widget.demoMode,
+      builder: (context, child) => widget.demoMode
+          ? Banner(
+              message: 'DEMO',
+              location: BannerLocation.topEnd,
+              child: child!,
+            )
+          : child!,
     );
   }
 }

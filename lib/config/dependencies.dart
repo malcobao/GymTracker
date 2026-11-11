@@ -3,6 +3,7 @@ import 'package:provider/single_child_widget.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/repositories/auth_repository.dart';
+import '../data/repositories/memory/in_memory_repositories.dart';
 import '../data/repositories/profile_repository.dart';
 import '../data/repositories/routine_repository.dart';
 import '../data/repositories/supabase/supabase_auth_repository.dart';
@@ -21,6 +22,26 @@ List<SingleChildWidget> appProviders(SupabaseClient client) => [
   Provider<ProfileRepository>(create: (_) => SupabaseProfileRepository(client)),
   Provider<RoutineRepository>(create: (_) => SupabaseRoutineRepository(client)),
   Provider<WorkoutRepository>(create: (_) => SupabaseWorkoutRepository(client)),
+  ChangeNotifierProvider(
+    create: (context) => SessionController(
+      auth: context.read<AuthRepository>(),
+      profiles: context.read<ProfileRepository>(),
+    ),
+  ),
+];
+
+/// Demo mode: everything in memory, no network. Used when the app is started
+/// without Supabase settings. The given repositories may be pre-seeded.
+List<SingleChildWidget> demoProviders({
+  required InMemoryRoutineRepository routines,
+  required InMemoryWorkoutRepository workouts,
+}) => [
+  ChangeNotifierProvider<AuthRepository>(
+    create: (_) => InMemoryAuthRepository(),
+  ),
+  Provider<ProfileRepository>(create: (_) => InMemoryProfileRepository()),
+  Provider<RoutineRepository>.value(value: routines),
+  Provider<WorkoutRepository>.value(value: workouts),
   ChangeNotifierProvider(
     create: (context) => SessionController(
       auth: context.read<AuthRepository>(),

@@ -11,7 +11,19 @@ security rules, architecture): see `docs/DECISIONS.md`.
 - Flutter 3.47.9 (Dart 3.13.7) or newer on the stable channel
 - A Supabase project (free plan is enough)
 
-## Set up the database (once)
+## Quick start: demo mode (no Supabase needed)
+
+```sh
+flutter pub get
+flutter run            # or press F5 in VS Code
+```
+
+Started without Supabase settings, the app runs in **demo mode** (a "DEMO"
+ribbon is shown): any email and a password of 8+ characters sign in, and a
+sample "Push day" routine with two past bench-press sessions is preloaded.
+Data lives in memory only and is lost when the app closes.
+
+## Set up the database (once, for real data)
 
 1. Create a free project at supabase.com.
 2. Open the project's **SQL Editor**, paste the whole file

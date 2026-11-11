@@ -40,7 +40,7 @@ void main() {
         auth: auth,
         profiles: FakeProfileRepository(profile: sampleProfile()),
       );
-      await auth.signIn('a@b.co', auth.password);
+      await auth.signIn('a@b.co', auth.password!);
       await pumpEventQueue();
       expect(session.status, SessionStatus.ready);
 
