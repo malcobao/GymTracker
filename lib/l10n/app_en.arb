@@ -1,0 +1,399 @@
+{
+  "@@locale": "en",
+  "appTitle": "Gym Tracker",
+  "navRoutines": "Routines",
+  "navStatistics": "Statistics",
+  "navReports": "Reports",
+  "navSettings": "Settings",
+  "cancel": "Cancel",
+  "save": "Save",
+  "create": "Create",
+  "delete": "Delete",
+  "edit": "Edit",
+  "archive": "Archive",
+  "restore": "Restore",
+  "tryAgain": "Try again",
+  "loading": "Loading",
+  "nameLabel": "Name",
+  "descriptionLabel": "Description (optional)",
+  "errRequired": "This field is required",
+  "errTooLong": "Use at most {max} characters",
+  "@errTooLong": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "errNotANumber": "Enter a number",
+  "errNotWholeNumber": "Enter a whole number",
+  "errOutOfRange": "Must be between {min} and {max}",
+  "@errOutOfRange": {
+    "placeholders": {
+      "min": {
+        "type": "num",
+        "format": "decimalPattern"
+      },
+      "max": {
+        "type": "num",
+        "format": "decimalPattern"
+      }
+    }
+  },
+  "errDuplicateName": "That name already exists",
+  "errAgeRange": "Age must be between {min} and {max} years",
+  "@errAgeRange": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "errorDuplicate": "That name is already in use.",
+  "errorInvalidData": "Some values are out of the allowed range.",
+  "errorInUse": "It has {count} logged sets.",
+  "@errorInUse": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "errorNotFound": "That item no longer exists.",
+  "errorStorage": "Could not access the local database.",
+  "sexMale": "Male",
+  "sexFemale": "Female",
+  "sexUnspecified": "Prefer not to say",
+  "levelBeginner": "Beginner",
+  "levelIntermediate": "Intermediate",
+  "levelAdvanced": "Advanced",
+  "goalStrength": "Get stronger",
+  "goalMuscleGain": "Build muscle",
+  "goalFatLoss": "Lose fat",
+  "goalGeneralFitness": "General fitness",
+  "muscleChest": "Chest",
+  "muscleBack": "Back",
+  "muscleShoulders": "Shoulders",
+  "muscleBiceps": "Biceps",
+  "muscleTriceps": "Triceps",
+  "muscleLegs": "Legs",
+  "muscleGlutes": "Glutes",
+  "muscleCore": "Core",
+  "muscleFullBody": "Full body",
+  "muscleOther": "Other",
+  "muscleNone": "No muscle group",
+  "onboardingTitle": "Tell us about you",
+  "onboardingIntro": "Used to personalise your training. You can change it any time.",
+  "editProfile": "Edit profile",
+  "birthDate": "Birth date",
+  "chooseDate": "Choose a date",
+  "sex": "Sex",
+  "height": "Height",
+  "bodyWeight": "Body weight",
+  "experience": "Experience",
+  "mainGoal": "Main goal",
+  "startTraining": "Start training",
+  "profileSaved": "Profile saved",
+  "ageAndBmi": "{age} years · BMI {bmi}",
+  "@ageAndBmi": {
+    "placeholders": {
+      "age": {
+        "type": "int"
+      },
+      "bmi": {
+        "type": "String"
+      }
+    }
+  },
+  "myRoutines": "My routines",
+  "archivedRoutines": "Archived routines",
+  "showArchived": "Show archived",
+  "routineFab": "Routine",
+  "noRoutines": "No routines yet. Create your first one, such as \"Push day\".",
+  "noArchivedRoutines": "No archived routines.",
+  "createRoutine": "Create routine",
+  "newRoutine": "New routine",
+  "editRoutine": "Edit routine",
+  "exerciseCount": "{count, plural, =0{No exercises} =1{1 exercise} other{{count} exercises}}",
+  "@exerciseCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "routineCreated": "Routine created",
+  "routineUpdated": "Routine updated",
+  "routineArchived": "Routine archived",
+  "routineRestored": "Routine restored",
+  "routineDeleted": "Routine deleted",
+  "deleteTitle": "Delete \"{name}\"?",
+  "@deleteTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteRoutineMessage": "The routine and its exercises are deleted for good.",
+  "deleteExerciseMessage": "The exercise is deleted for good.",
+  "inUseTitle": "\"{name}\" has history",
+  "@inUseTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "inUseMessage": "The database blocked the delete: {count} logged sets depend on it (referential integrity). Archive it to hide it and keep the history, or delete it together with all its sets.",
+  "@inUseMessage": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteEverything": "Delete everything",
+  "addExercise": "Add exercise",
+  "editExercise": "Edit exercise",
+  "noExercises": "This routine has no exercises yet.",
+  "noArchivedExercises": "No archived exercises.",
+  "archivedExercises": "Archived exercises",
+  "startWorkout": "Start today's workout",
+  "progressTooltip": "Progress",
+  "moreOptions": "More options",
+  "exerciseNameHint": "Name, e.g. Bench press",
+  "muscleGroupOptional": "Muscle group (optional)",
+  "targetSets": "Target sets",
+  "targetReps": "Target reps",
+  "targetLabel": "{sets} × {reps}",
+  "@targetLabel": {
+    "placeholders": {
+      "sets": {
+        "type": "int"
+      },
+      "reps": {
+        "type": "int"
+      }
+    }
+  },
+  "targetSetsOnly": "{sets} sets",
+  "@targetSetsOnly": {
+    "placeholders": {
+      "sets": {
+        "type": "int"
+      }
+    }
+  },
+  "targetRepsOnly": "{reps} reps",
+  "@targetRepsOnly": {
+    "placeholders": {
+      "reps": {
+        "type": "int"
+      }
+    }
+  },
+  "exerciseAdded": "Exercise added",
+  "exerciseUpdated": "Exercise updated",
+  "exerciseArchived": "Exercise archived",
+  "exerciseRestored": "Exercise restored",
+  "exerciseDeleted": "Exercise deleted",
+  "workoutOf": "Workout of {date}",
+  "@workoutOf": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "weight": "Weight",
+  "reps": "Reps",
+  "logSet": "Log set",
+  "setLogged": "Set {number} logged",
+  "@setLogged": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "setDeleted": "Set {number} deleted",
+  "@setDeleted": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "setUpdated": "Set updated",
+  "editSet": "Edit set {number}",
+  "@editSet": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "deleteSet": "Delete set {number}",
+  "@deleteSet": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "noExercisesWorkout": "Add exercises to this routine first.",
+  "targetPrefix": "Target: {target}",
+  "@targetPrefix": {
+    "placeholders": {
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "bestOneRepMax": "Best estimated 1RM",
+  "changeSinceFirst": "Change since first day",
+  "trainingDays": "Training days",
+  "oneRepMaxPerDay": "Estimated 1-rep max per day",
+  "epleyNote": "Estimate uses the Epley formula: weight × (1 + reps / 30).",
+  "history": "History",
+  "date": "Date",
+  "topSet": "Top set",
+  "estimated1rm": "Est. 1RM",
+  "volume": "Volume",
+  "noSetsForExercise": "No sets logged for this exercise yet.",
+  "period": "Period",
+  "last7Days": "Last 7 days",
+  "last30Days": "Last 30 days",
+  "last90Days": "Last 90 days",
+  "lastYear": "Last 12 months",
+  "allTime": "All time",
+  "customRange": "Custom range…",
+  "routine": "Routine",
+  "allRoutines": "All routines",
+  "exercise": "Exercise",
+  "allExercises": "All exercises",
+  "muscleGroup": "Muscle group",
+  "allMuscleGroups": "All muscle groups",
+  "filters": "Filters",
+  "archivedTag": "archived",
+  "statsSets": "Sets",
+  "statsReps": "Reps",
+  "statsVolume": "Total volume",
+  "statsAvgVolume": "Avg volume / session",
+  "statsAvgSets": "Avg sets / session",
+  "statsStreak": "Week streak",
+  "statsWeeks": "{count, plural, =1{1 week} other{{count} weeks}}",
+  "@statsWeeks": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "chartOverTime": "Progress over time",
+  "metric": "Metric",
+  "groupBy": "Group by",
+  "groupDay": "Day",
+  "groupWeek": "Week",
+  "groupMonth": "Month",
+  "chartOneRepMax": "Estimated 1RM progress",
+  "chooseExercise": "Choose an exercise",
+  "chartMuscleGroups": "Distribution by muscle group",
+  "chartWeekdays": "Training days by weekday",
+  "chartTopExercises": "Top exercises",
+  "rankBy": "Rank by",
+  "rankOneRepMax": "Best 1RM",
+  "topN": "Top {count}",
+  "@topN": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noData": "No sets in this selection. Log a workout or load the sample data in Settings.",
+  "noDataExercise": "No sets of this exercise in the period.",
+  "reportType": "Report",
+  "reportSetLog": "Set log",
+  "reportByExercise": "Summary by exercise",
+  "reportByPeriod": "Summary by period",
+  "reportRecords": "Personal records",
+  "reportSetLogInfo": "Every logged set, one row each.",
+  "reportByExerciseInfo": "Days, sets, reps, volume and best lifts per exercise.",
+  "reportByPeriodInfo": "Your training grouped by day, week or month.",
+  "reportRecordsInfo": "Heaviest weight and best estimated 1RM per exercise, with dates.",
+  "show": "Show",
+  "order": "Order",
+  "sortBy": "Sort by",
+  "ascending": "Ascending",
+  "descending": "Descending",
+  "rowCount": "{count, plural, =1{1 row} other{{count} rows}}",
+  "@rowCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "total": "Total",
+  "copyCsv": "Copy as CSV",
+  "csvCopied": "Report copied as CSV. Paste it into Excel or Google Sheets.",
+  "colDate": "Date",
+  "colPeriod": "Period",
+  "colRoutine": "Routine",
+  "colExercise": "Exercise",
+  "colMuscleGroup": "Muscle group",
+  "colSetNumber": "Set",
+  "colWeight": "Weight",
+  "colReps": "Reps",
+  "colVolume": "Volume",
+  "colSets": "Sets",
+  "colDays": "Days",
+  "colTopWeight": "Top weight",
+  "colTopWeightDate": "Top weight date",
+  "colBestOneRepMax": "Best est. 1RM",
+  "colBestOneRepMaxDate": "1RM date",
+  "weekOf": "Week of {date}",
+  "@weekOf": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "profileSection": "Profile",
+  "appearance": "Appearance",
+  "language": "Language",
+  "languageSystem": "Automatic",
+  "theme": "Theme",
+  "themeSystem": "System",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "accentColor": "Accent color",
+  "weightUnit": "Weight unit",
+  "databaseSection": "Local database (SQLite)",
+  "databaseInfo": "Everything is stored on this device in four related tables.",
+  "tableRows": "{count, plural, =1{1 row} other{{count} rows}}",
+  "@tableRows": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tableProfile": "profile — your profile",
+  "tableRoutines": "routines — training plans",
+  "tableExercises": "exercises — exercises of each routine",
+  "tableSets": "workout_sets — every set lifted",
+  "loadSampleData": "Load sample data",
+  "loadSampleDataInfo": "Adds 3 routines and 8 weeks of workouts to try the statistics and reports.",
+  "sampleDataLoaded": "Sample data loaded",
+  "deleteAllData": "Delete all data",
+  "deleteAllDataMessage": "Every routine, exercise, set and your profile are deleted from this device. This cannot be undone.",
+  "about": "About",
+  "aboutText": "Personal gym tracker. Works offline; your data never leaves this device."
+}
