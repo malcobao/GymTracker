@@ -70,7 +70,8 @@ class _GymTrackerAppState extends State<GymTrackerApp> {
       builder: (context, child) => widget.demoMode
           ? Banner(
               message: 'DEMO',
-              location: BannerLocation.topEnd,
+              // Bottom start: top end would cover the app bar actions.
+              location: BannerLocation.bottomStart,
               child: child!,
             )
           : child!,

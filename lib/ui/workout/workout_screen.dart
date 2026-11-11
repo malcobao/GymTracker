@@ -34,6 +34,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     vm.load();
   }
 
+  // The router may rebuild this page with a new view model (for example
+  // when returning from a pushed screen); load it, or it stays Loading.
+  @override
+  void didUpdateWidget(WorkoutScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.viewModel != widget.viewModel) widget.viewModel.load();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

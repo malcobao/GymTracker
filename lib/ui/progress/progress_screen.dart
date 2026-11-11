@@ -34,6 +34,14 @@ class _ProgressScreenState extends State<ProgressScreen> {
     widget.viewModel.load();
   }
 
+  // The router may rebuild this page with a new view model (for example
+  // when returning from a pushed screen); load it, or it stays Loading.
+  @override
+  void didUpdateWidget(ProgressScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.viewModel != widget.viewModel) widget.viewModel.load();
+  }
+
   @override
   Widget build(BuildContext context) {
     final vm = widget.viewModel;

@@ -36,6 +36,14 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
     vm.load();
   }
 
+  // The router may rebuild this page with a new view model (for example
+  // when returning from a pushed screen); load it, or it stays Loading.
+  @override
+  void didUpdateWidget(RoutineDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.viewModel != widget.viewModel) widget.viewModel.load();
+  }
+
   Future<void> _add() async {
     final draft = await showExerciseDialog(context);
     if (draft == null || !mounted) return;

@@ -10,6 +10,8 @@ import 'package:gym_tracker/ui/onboarding/profile_form_view_model.dart';
 import 'package:gym_tracker/ui/progress/progress_screen.dart';
 import 'package:gym_tracker/ui/progress/progress_view_model.dart';
 import 'package:gym_tracker/ui/routines/routine_list_screen.dart';
+import 'package:gym_tracker/ui/routines/routine_detail_screen.dart';
+import 'package:gym_tracker/ui/routines/routine_detail_view_model.dart';
 import 'package:gym_tracker/ui/routines/routine_list_view_model.dart';
 import 'package:gym_tracker/ui/workout/workout_screen.dart';
 import 'package:gym_tracker/ui/workout/workout_view_model.dart';
@@ -151,5 +153,27 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Choose your birth date'), findsOneWidget);
     expect(profiles.profile, isNull);
+  });
+  // Regression: the router rebuilds pages with a fresh view model (e.g. when
+  // popping back to them); the screen must load it instead of spinning.
+  testWidgets('routine detail: a new view model after a rebuild is loaded', (
+    tester,
+  ) async {
+    final routines = FakeRoutineRepository();
+    await routines.addExercise('r1', const ExerciseDraft(name: 'Dips'));
+    Widget screen() => app(
+      RoutineDetailScreen(
+        title: 'Push day',
+        viewModel: RoutineDetailViewModel(routines, routineId: 'r1'),
+      ),
+    );
+    await tester.pumpWidget(screen());
+    await tester.pumpAndSettle();
+    expect(find.text('Dips'), findsOneWidget);
+
+    await tester.pumpWidget(screen());
+    await tester.pumpAndSettle();
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('Dips'), findsOneWidget);
   });
 }
