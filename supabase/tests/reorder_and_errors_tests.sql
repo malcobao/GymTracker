@@ -23,3 +23,9 @@ SELECT name, position FROM exercises ORDER BY position;
 INSERT INTO routines (user_id,name) VALUES ('a0000000-0000-0000-0000-000000000001','Push day');
 INSERT INTO workout_sets (exercise_id,performed_on,set_number,weight_kg,reps) VALUES ('e0000000-0000-0000-0000-000000000001','2026-11-03',1,60,0);
 INSERT INTO routines (user_id,name) VALUES ('b0000000-0000-0000-0000-000000000002','Hack');
+\echo '--- reorder after archiving an exercise (app appends archived ids at the end) ---'
+SET ROLE authenticated; SET test.uid='a0000000-0000-0000-0000-000000000001';
+UPDATE exercises SET archived_at = now() WHERE id = 'e0000000-0000-0000-0000-000000000001';  -- archive Bench press (position 2)
+-- Active order requested: OHP, Dips; archived Bench press appended last.
+SELECT public.reorder_exercises('c0000000-0000-0000-0000-000000000001', ARRAY['e0000000-0000-0000-0000-000000000002','e0000000-0000-0000-0000-000000000003','e0000000-0000-0000-0000-000000000001']::uuid[]);
+SELECT name, position, archived_at IS NOT NULL AS archived FROM exercises ORDER BY position;

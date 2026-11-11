@@ -18,3 +18,7 @@ code stays consistent with it.
 | 2026-11-05 | `reorder_exercises()` database function | Reorder in one statement despite the unique position rule |
 | 2026-11-05 | Progress computed in Dart, not a SQL view | Small data volume; avoids a fifth database object that could count as a table |
 | 2026-11-05 | MVVM per Flutter's architecture guide: `ChangeNotifier`, `provider`, `go_router` | Official guidance, few dependencies |
+| 2026-11-11 | Archived routines/exercises keep their name | Logged history stays readable; re-using an archived name is rejected with a clear message |
+| 2026-11-11 | Reorder sends active exercises first, archived ones after | Archived rows keep a position; renumbering all of them avoids unique-position clashes |
+| 2026-11-11 | Progress chart drawn with `CustomPainter` | No extra chart dependency for one simple line |
+| 2026-11-11 | Weights typed in the user's unit, stored in kg with 2 decimals | Matches `NUMERIC(6,2)` columns |

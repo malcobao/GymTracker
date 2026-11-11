@@ -11,6 +11,19 @@ security rules, architecture): see `docs/DECISIONS.md`.
 - Flutter 3.47.9 (Dart 3.13.7) or newer on the stable channel
 - A Supabase project (free plan is enough)
 
+## Set up the database (once)
+
+1. Create a free project at supabase.com.
+2. Open the project's **SQL Editor**, paste the whole file
+   `supabase/migrations/20261104120000_init_schema.sql` and run it.
+   (Or, with the Supabase CLI: `supabase link` then `supabase db push`.)
+3. In **Project Settings → API keys**, copy the project URL and the
+   **publishable** key. Never copy the secret key into the app.
+4. Email confirmation is on by default. The app has no deep link for the
+   confirmation email yet, so either confirm via the email link and then sign in
+   in the app, or turn off "Confirm email" in the Email provider settings of
+   Supabase Authentication for this personal project.
+
 ## Run
 
 The app reads its Supabase settings at build time. Only the **publishable** key
@@ -31,6 +44,16 @@ flutter analyze
 flutter test
 ```
 
+## Features
+
+- Email + password sign up / sign in / sign out / password reset
+- Onboarding profile (name, birth date, sex, height, body weight, experience,
+  goal, kg or lb) and profile editing
+- Routines: create, rename, remove (archived, history kept)
+- Exercises per routine: add, edit, remove, drag to reorder, targets
+- Today's workout: log every set (weight × reps), delete mistakes
+- Progress per exercise: best estimated 1RM (Epley), change, chart, history
+
 ## Database
 
 - `supabase/migrations/` — the approved schema (4 tables + Row Level Security).
@@ -44,8 +67,8 @@ flutter test
 lib/
   config/     build-time settings
   routing/    routes and redirects (go_router)
-  domain/     models and pure business logic (added in later milestones)
-  data/       repositories that talk to Supabase (added in later milestones)
+  domain/     models, validation and progress calculations (pure Dart)
+  data/       repositories: abstract classes + Supabase implementations
   ui/         one folder per feature: view + view model; ui/core = shared widgets
   utils/      small shared types such as Result
 ```
