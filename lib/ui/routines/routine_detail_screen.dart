@@ -153,7 +153,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
               Expanded(
                 child: ReorderableListView.builder(
                   padding: const EdgeInsets.only(top: AppTheme.space2),
-                  buildDefaultDragHandles: !vm.showArchived,
+                  buildDefaultDragHandles: false,
                   itemCount: exercises.length,
                   onReorderItem: (from, to) async {
                     final error = await vm.move(from, to);
@@ -163,6 +163,7 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
                     key: ValueKey(exercises[i].id),
                     index: i,
                     child: _ExerciseTile(
+                      index: i,
                       exercise: exercises[i],
                       onTap: exercises[i].archived
                           ? null
@@ -203,12 +204,14 @@ class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
 
 class _ExerciseTile extends StatelessWidget {
   const _ExerciseTile({
+    required this.index,
     required this.exercise,
     required this.onTap,
     required this.onProgress,
     required this.onAction,
   });
 
+  final int index;
   final Exercise exercise;
   final VoidCallback? onTap;
   final VoidCallback onProgress;
@@ -255,7 +258,15 @@ class _ExerciseTile extends StatelessWidget {
                 PopupMenuItem(value: _Action.delete, child: Text(l10n.delete)),
               ],
             ),
-            if (!exercise.archived) const SizedBox(width: 32),
+            // Drag here to change the order (saved in `position`).
+            if (!exercise.archived)
+              ReorderableDragStartListener(
+                index: index,
+                child: const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Icon(Icons.drag_handle),
+                ),
+              ),
           ],
         ),
       ),

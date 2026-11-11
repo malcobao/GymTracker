@@ -145,4 +145,41 @@ void main() {
     expect(find.text('Set'), findsWidgets);
     expect(find.text('Total'), findsWidgets);
   });
+
+  testWidgets('workout: live validation, then a logged set is saved', (
+    tester,
+  ) async {
+    await pumpApp(tester, withSampleData: true);
+    final before = (await db.query('workout_sets')).length;
+    await tester.tap(find.text('Push day'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text("Start today's workout"));
+    await tester.pumpAndSettle();
+
+    final card = find.ancestor(
+      of: find.text('Bench press'),
+      matching: find.byType(Card),
+    );
+    final weight = find.descendant(
+      of: card,
+      matching: find.widgetWithText(TextFormField, 'Weight'),
+    );
+    final reps = find.descendant(
+      of: card,
+      matching: find.widgetWithText(TextFormField, 'Reps'),
+    );
+    await tester.enterText(reps, '500');
+    await tester.pump();
+    expect(find.text('Must be between 1 and 200'), findsOneWidget);
+
+    await tester.enterText(weight, '72,5');
+    await tester.enterText(reps, '6');
+    await tester.tap(find.descendant(of: card, matching: find.text('Log set')));
+    await tester.pumpAndSettle();
+    // Sample data may already hold today's sets (on Mondays): any number.
+    expect(find.textContaining(RegExp(r'^Set \d+ logged$')), findsOneWidget);
+    final sets = await db.query('workout_sets');
+    expect(sets.length, before + 1);
+    expect(sets.last['weight_kg'], 72.5);
+  });
 }

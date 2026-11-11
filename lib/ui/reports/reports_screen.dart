@@ -19,6 +19,13 @@ import 'reports_view_model.dart';
 /// filters (period, routine, exercise, muscle group), the grouping and the
 /// sort column/direction (also by tapping a column header), then can copy
 /// the result as CSV.
+const _icons = {
+  ReportType.setLog: Icons.list_alt,
+  ReportType.byExercise: Icons.fitness_center,
+  ReportType.byPeriod: Icons.date_range,
+  ReportType.personalRecords: Icons.emoji_events_outlined,
+};
+
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
 
@@ -89,20 +96,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SegmentedButton<ReportType>(
-                          showSelectedIcon: false,
-                          segments: [
+                        Wrap(
+                          spacing: AppTheme.space2,
+                          runSpacing: AppTheme.space2,
+                          children: [
                             for (final t in ReportType.values)
-                              ButtonSegment(
-                                value: t,
-                                label: Text(
-                                  l10n.reportTypeLabel(t),
-                                  textAlign: TextAlign.center,
-                                ),
+                              ChoiceChip(
+                                avatar: Icon(_icons[t], size: 18),
+                                label: Text(l10n.reportTypeLabel(t)),
+                                selected: config.type == t,
+                                showCheckmark: false,
+                                onSelected: (_) => vm.setType(t),
                               ),
                           ],
-                          selected: {config.type},
-                          onSelectionChanged: (s) => vm.setType(s.first),
                         ),
                         const SizedBox(height: AppTheme.space2),
                         AnimatedSwitcher(
