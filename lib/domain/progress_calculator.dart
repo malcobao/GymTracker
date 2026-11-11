@@ -1,3 +1,4 @@
+import 'models/user_profile.dart' show dayOf;
 import 'models/workout_set.dart';
 
 /// Progress of one exercise on one training day.
@@ -24,7 +25,7 @@ class DailyProgress {
   final int setCount;
 }
 
-/// Pure calculations on logged sets. No Flutter or Supabase imports, so it is
+/// Pure calculations on logged sets. No Flutter or database imports, so it is
 /// trivial to unit-test.
 abstract final class ProgressCalculator {
   /// Epley estimate of the one-repetition maximum: weight × (1 + reps / 30).
@@ -35,19 +36,14 @@ abstract final class ProgressCalculator {
     return weightKg * (1 + reps / 30);
   }
 
-  static double volume(Iterable<WorkoutSet> sets) =>
+  static double volume(Iterable<Lift> sets) =>
       sets.fold(0, (sum, s) => sum + s.weightKg * s.reps);
 
   /// Groups [sets] by day and returns one entry per day, oldest first.
-  static List<DailyProgress> byDay(Iterable<WorkoutSet> sets) {
-    final days = <DateTime, List<WorkoutSet>>{};
+  static List<DailyProgress> byDay(Iterable<Lift> sets) {
+    final days = <DateTime, List<Lift>>{};
     for (final set in sets) {
-      final day = DateTime(
-        set.performedOn.year,
-        set.performedOn.month,
-        set.performedOn.day,
-      );
-      days.putIfAbsent(day, () => []).add(set);
+      days.putIfAbsent(dayOf(set.date), () => []).add(set);
     }
     final result = [
       for (final MapEntry(key: day, value: daySets) in days.entries)

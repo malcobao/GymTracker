@@ -1,50 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'config/demo_data.dart';
 import 'config/dependencies.dart';
-import 'config/env.dart';
-import 'data/repositories/memory/in_memory_repositories.dart';
+import 'data/local/open_database.dart';
+import 'l10n/app_localizations.dart';
 import 'routing/router.dart';
 import 'ui/core/app_theme.dart';
 import 'ui/core/view_models/session_controller.dart';
+import 'ui/core/view_models/settings_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final env = Env.fromBuildTime();
-  if (!env.isValid) {
-    // No Supabase settings: run the offline demo with sample data.
-    final routines = InMemoryRoutineRepository();
-    final workouts = InMemoryWorkoutRepository();
-    await seedDemoData(routines, workouts);
-    runApp(
-      MultiProvider(
-        providers: demoProviders(routines: routines, workouts: workouts),
-        child: const GymTrackerApp(demoMode: true),
-      ),
-    );
-    return;
-  }
-  await Supabase.initialize(
-    url: env.supabaseUrl,
-    publishableKey: env.supabasePublishableKey,
-  );
+  final prefs = await SharedPreferences.getInstance();
+  final db = await openAppDatabase();
   runApp(
     MultiProvider(
-      providers: appProviders(Supabase.instance.client),
+      providers: appProviders(db, prefs),
       child: const GymTrackerApp(),
     ),
   );
 }
 
-/// Root widget: wires the theme and the router together.
+/// Root widget: theme, language and router.
 class GymTrackerApp extends StatefulWidget {
-  const GymTrackerApp({this.demoMode = false, super.key});
-
-  /// Shows a "DEMO" ribbon: data is kept in memory only.
-  final bool demoMode;
+  const GymTrackerApp({super.key});
 
   @override
   State<GymTrackerApp> createState() => _GymTrackerAppState();
@@ -61,20 +43,23 @@ class _GymTrackerAppState extends State<GymTrackerApp> {
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsController>();
     return MaterialApp.router(
-      title: 'Gym Tracker',
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
+      onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.build(settings.accent, Brightness.light),
+      darkTheme: AppTheme.build(settings.accent, Brightness.dark),
+      themeMode: settings.themeMode,
+      themeAnimationDuration: AppTheme.medium,
+      locale: settings.locale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       routerConfig: _router,
-      debugShowCheckedModeBanner: !widget.demoMode,
-      builder: (context, child) => widget.demoMode
-          ? Banner(
-              message: 'DEMO',
-              // Bottom start: top end would cover the app bar actions.
-              location: BannerLocation.bottomStart,
-              child: child!,
-            )
-          : child!,
     );
   }
 }

@@ -2,136 +2,105 @@ import 'package:flutter/foundation.dart';
 
 import '../../data/repositories/routine_repository.dart';
 import '../../data/repositories/workout_repository.dart';
-import '../../domain/models/enums.dart';
 import '../../domain/models/exercise.dart';
+import '../../domain/models/routine.dart';
+import '../../domain/models/user_profile.dart' show dayOf;
 import '../../domain/models/workout_set.dart';
-import '../../utils/user_message.dart';
 import '../../utils/result.dart';
-import '../../utils/units.dart';
 import '../core/view_models/view_state.dart';
 
-/// One exercise and the sets logged for it today.
-class ExerciseWithSets {
-  const ExerciseWithSets(this.exercise, this.sets);
-  final Exercise exercise;
-  final List<WorkoutSet> sets;
-}
+/// One exercise of today's workout and the sets already logged for it.
+typedef WorkoutItem = ({Exercise exercise, List<WorkoutSet> sets});
 
-/// Logging today's sets for every exercise of one routine.
+/// Today's workout of one routine (CRUD of `workout_sets`). Weights are
+/// always kilograms here; the screen converts from the user's unit.
 class WorkoutViewModel extends ChangeNotifier {
   WorkoutViewModel({
     required this._routines,
     required this._workouts,
     required this.routineId,
-    required this.unit,
     DateTime? day,
-  }) : day = _dateOf(day ?? DateTime.now());
+  }) : day = dayOf(day ?? DateTime.now());
 
   final RoutineRepository _routines;
   final WorkoutRepository _workouts;
-  final String routineId;
-
-  /// The unit the user types weights in; stored values are always kg.
-  final WeightUnit unit;
-
-  /// The training day (local date, no time).
+  final int routineId;
   final DateTime day;
 
-  ViewState<List<ExerciseWithSets>> _state = const Loading();
-  ViewState<List<ExerciseWithSets>> get state => _state;
+  Routine? _routine;
+  Routine? get routine => _routine;
 
-  /// The loaded exercises, or an empty list in any other state.
-  @visibleForTesting
-  List<ExerciseWithSets> get exercisesForTest => switch (_state) {
-    Loaded(:final data) => data,
-    _ => const [],
-  };
+  ViewState<List<WorkoutItem>> _state = const Loading();
+  ViewState<List<WorkoutItem>> get state => _state;
 
   bool _saving = false;
   bool get saving => _saving;
 
-  static DateTime _dateOf(DateTime d) => DateTime(d.year, d.month, d.day);
-
   Future<void> load() async {
-    _state = const Loading();
-    notifyListeners();
-    final exercisesResult = await _routines.listExercises(routineId);
-    if (exercisesResult case Error(:final error)) {
-      _state = Failed(userMessage(error));
+    if (await _routines.getRoutine(routineId) case Ok(:final value)) {
+      _routine = value;
+    }
+    final exercises = await _routines.listExercises(routineId);
+    if (exercises case Error(:final error)) {
+      _state = Failed(error);
       notifyListeners();
       return;
     }
-    final exercises = (exercisesResult as Ok<List<Exercise>>).value;
-    if (exercises.isEmpty) {
+    final list = (exercises as Ok<List<Exercise>>).value;
+    if (list.isEmpty) {
       _state = const Empty();
       notifyListeners();
       return;
     }
-    final setsResult = await _workouts.listSetsOn([
-      for (final e in exercises) e.id,
-    ], day);
-    _state = switch (setsResult) {
-      Ok(value: final sets) => Loaded([
-        for (final e in exercises)
-          ExerciseWithSets(e, [
-            for (final s in sets)
-              if (s.exerciseId == e.id) s,
-          ]),
+    final sets = await _workouts.listSetsOn([for (final e in list) e.id], day);
+    _state = switch (sets) {
+      Ok(value: final all) => Loaded([
+        for (final e in list)
+          (
+            exercise: e,
+            sets: [
+              for (final s in all)
+                if (s.exerciseId == e.id) s,
+            ],
+          ),
       ]),
-      Error(:final error) => Failed(userMessage(error)),
+      Error(:final error) => Failed(error),
     };
     notifyListeners();
   }
 
-  /// [weight] is in [unit]. Returns an error message, or null on success.
-  Future<String?> logSet(String exerciseId, double weight, int reps) async {
-    _saving = true;
-    notifyListeners();
-    final result = await _workouts.logSet(
+  /// CREATE a set. Returns the logged set or the error.
+  Future<Result<WorkoutSet>> logSet(
+    int exerciseId,
+    double weightKg,
+    int reps,
+  ) => _busy(
+    () => _workouts.logSet(
       exerciseId: exerciseId,
       day: day,
-      weightKg: double.parse(Units.toKg(weight, unit).toStringAsFixed(2)),
+      weightKg: weightKg,
       reps: reps,
-    );
-    _saving = false;
-    switch (result) {
-      case Ok(value: final saved):
-        _replaceSets(exerciseId, (sets) => [...sets, saved]);
-        return null;
-      case Error(:final error):
-        notifyListeners();
-        return userMessage(error);
-    }
-  }
+    ),
+  );
 
-  Future<String?> deleteSet(WorkoutSet set) async {
-    switch (await _workouts.deleteSet(set.id)) {
-      case Ok():
-        _replaceSets(
-          set.exerciseId,
-          (sets) => [
-            for (final s in sets)
-              if (s.id != set.id) s,
-          ],
-        );
-        return null;
-      case Error(:final error):
-        return userMessage(error);
-    }
-  }
+  /// UPDATE a set.
+  Future<Result<void>> updateSet(int setId, double weightKg, int reps) =>
+      _busy(() => _workouts.updateSet(setId, weightKg: weightKg, reps: reps));
 
-  void _replaceSets(
-    String exerciseId,
-    List<WorkoutSet> Function(List<WorkoutSet>) change,
-  ) {
-    if (_state case Loaded(data: final items)) {
-      _state = Loaded([
-        for (final item in items)
-          item.exercise.id == exerciseId
-              ? ExerciseWithSets(item.exercise, change(item.sets))
-              : item,
-      ]);
-    }
+  /// DELETE a set (later sets are renumbered by the repository).
+  Future<Result<void>> deleteSet(int setId) =>
+      _busy(() => _workouts.deleteSet(setId));
+
+  Future<Result<T>> _busy<T>(Future<Result<T>> Function() action) async {
+    _saving = true;
     notifyListeners();
+    final result = await action();
+    _saving = false;
+    if (result is Ok) {
+      await load();
+    } else {
+      notifyListeners();
+    }
+    return result;
   }
 }

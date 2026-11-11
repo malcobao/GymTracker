@@ -1,42 +1,40 @@
-/// Enumerations shared by the models. Each value knows the exact string the
-/// database stores (see the CHECK constraints in supabase/migrations).
+/// Enumerations shared by the models. Each value knows the exact text stored
+/// in the database (see the CHECK constraints in `app_database.dart`).
+/// Display labels are translated in the UI (`ui/core/labels.dart`).
 library;
 
 enum Sex {
-  male('male', 'Male'),
-  female('female', 'Female'),
-  unspecified('unspecified', 'Prefer not to say');
+  male('male'),
+  female('female'),
+  unspecified('unspecified');
 
-  const Sex(this.dbValue, this.label);
+  const Sex(this.dbValue);
   final String dbValue;
-  final String label;
 
   static Sex fromDb(String value) =>
       values.firstWhere((v) => v.dbValue == value);
 }
 
 enum ExperienceLevel {
-  beginner('beginner', 'Beginner'),
-  intermediate('intermediate', 'Intermediate'),
-  advanced('advanced', 'Advanced');
+  beginner('beginner'),
+  intermediate('intermediate'),
+  advanced('advanced');
 
-  const ExperienceLevel(this.dbValue, this.label);
+  const ExperienceLevel(this.dbValue);
   final String dbValue;
-  final String label;
 
   static ExperienceLevel fromDb(String value) =>
       values.firstWhere((v) => v.dbValue == value);
 }
 
 enum Goal {
-  strength('strength', 'Get stronger'),
-  muscleGain('muscle_gain', 'Build muscle'),
-  fatLoss('fat_loss', 'Lose fat'),
-  generalFitness('general_fitness', 'General fitness');
+  strength('strength'),
+  muscleGain('muscle_gain'),
+  fatLoss('fat_loss'),
+  generalFitness('general_fitness');
 
-  const Goal(this.dbValue, this.label);
+  const Goal(this.dbValue);
   final String dbValue;
-  final String label;
 
   static Goal fromDb(String value) =>
       values.firstWhere((v) => v.dbValue == value);
@@ -54,20 +52,19 @@ enum WeightUnit {
 }
 
 enum MuscleGroup {
-  chest('chest', 'Chest'),
-  back('back', 'Back'),
-  shoulders('shoulders', 'Shoulders'),
-  biceps('biceps', 'Biceps'),
-  triceps('triceps', 'Triceps'),
-  legs('legs', 'Legs'),
-  glutes('glutes', 'Glutes'),
-  core('core', 'Core'),
-  fullBody('full_body', 'Full body'),
-  other('other', 'Other');
+  chest('chest'),
+  back('back'),
+  shoulders('shoulders'),
+  biceps('biceps'),
+  triceps('triceps'),
+  legs('legs'),
+  glutes('glutes'),
+  core('core'),
+  fullBody('full_body'),
+  other('other');
 
-  const MuscleGroup(this.dbValue, this.label);
+  const MuscleGroup(this.dbValue);
   final String dbValue;
-  final String label;
 
   static MuscleGroup? fromDb(String? value) =>
       value == null ? null : values.firstWhere((v) => v.dbValue == value);

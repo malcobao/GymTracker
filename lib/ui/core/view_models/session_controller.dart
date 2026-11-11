@@ -1,33 +1,17 @@
 import 'package:flutter/foundation.dart';
 
-import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/profile_repository.dart';
+import '../../../domain/models/enums.dart';
 import '../../../domain/models/user_profile.dart';
-import '../../../utils/user_message.dart';
 import '../../../utils/result.dart';
 
-enum SessionStatus {
-  /// Checking whether a profile exists.
-  loading,
-  signedOut,
+enum SessionStatus { loading, needsOnboarding, ready, error }
 
-  /// Signed in, but the onboarding profile has not been created yet.
-  needsOnboarding,
-  ready,
-
-  /// Signed in, but the profile could not be loaded (for example, offline).
-  error,
-}
-
-/// App-wide state: who is signed in and their profile. The router listens to
-/// it to decide which screen may be shown.
+/// Knows whether the profile exists (personal app: no accounts or login).
+/// The router listens to it: no profile → onboarding, profile → the app.
 class SessionController extends ChangeNotifier {
-  SessionController({required this._auth, required this._profiles}) {
-    _auth.addListener(_onAuthChanged);
-    _onAuthChanged();
-  }
+  SessionController(this._profiles);
 
-  final AuthRepository _auth;
   final ProfileRepository _profiles;
 
   SessionStatus _status = SessionStatus.loading;
@@ -36,54 +20,30 @@ class SessionController extends ChangeNotifier {
   UserProfile? _profile;
   UserProfile? get profile => _profile;
 
-  String? _errorMessage;
-  String? get errorMessage => _errorMessage;
+  /// The unit every weight is shown in.
+  WeightUnit get unit => _profile?.weightUnit ?? WeightUnit.kg;
 
-  bool? _wasSignedIn;
-
-  void _onAuthChanged() {
-    final signedIn = _auth.isSignedIn;
-    if (signedIn == _wasSignedIn) return;
-    _wasSignedIn = signedIn;
-    if (signedIn) {
-      reload();
-    } else {
-      _profile = null;
-      _set(SessionStatus.signedOut);
-    }
-  }
-
-  /// Loads the profile again, for example after an error.
-  Future<void> reload() async {
-    _set(SessionStatus.loading);
-    switch (await _profiles.getMyProfile()) {
-      case Ok(value: final profile?):
+  Future<void> load() async {
+    _status = SessionStatus.loading;
+    notifyListeners();
+    switch (await _profiles.getProfile()) {
+      case Ok(value: final profile):
         _profile = profile;
-        _set(SessionStatus.ready);
-      case Ok(value: null):
-        _set(SessionStatus.needsOnboarding);
-      case Error(:final error):
-        _errorMessage = userMessage(error);
-        _set(SessionStatus.error);
+        _status = profile == null
+            ? SessionStatus.needsOnboarding
+            : SessionStatus.ready;
+      case Error():
+        _status = SessionStatus.error;
     }
-  }
-
-  /// Called after the profile form saves successfully.
-  void profileSaved(UserProfile profile) {
-    _profile = profile;
-    _set(SessionStatus.ready);
-  }
-
-  Future<void> signOut() => _auth.signOut();
-
-  void _set(SessionStatus status) {
-    _status = status;
     notifyListeners();
   }
 
-  @override
-  void dispose() {
-    _auth.removeListener(_onAuthChanged);
-    super.dispose();
+  /// Called after the profile was saved (or after all data was deleted).
+  void profileChanged(UserProfile? profile) {
+    _profile = profile;
+    _status = profile == null
+        ? SessionStatus.needsOnboarding
+        : SessionStatus.ready;
+    notifyListeners();
   }
 }

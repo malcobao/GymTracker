@@ -1,86 +1,61 @@
-import 'dart:async';
-import 'dart:io';
+import 'package:sqflite/sqflite.dart' show DatabaseException;
 
-import 'package:supabase_flutter/supabase_flutter.dart';
-
-/// Every failure the UI can show. Repositories convert library exceptions into
-/// one of these, so screens never depend on Supabase types.
+/// Every failure the UI can show. Repositories convert database exceptions
+/// into one of these, so screens never depend on SQLite types. The UI shows a
+/// translated message for each type (`ui/core/labels.dart`).
 sealed class AppException implements Exception {
-  const AppException(this.message);
-
-  /// A message that can be shown to the user as is.
-  final String message;
+  const AppException();
 
   @override
-  String toString() => '$runtimeType: $message';
+  String toString() => runtimeType.toString();
 }
 
-final class NetworkException extends AppException {
-  const NetworkException()
-    : super('No internet connection. Nothing was saved; please try again.');
-}
-
+/// A UNIQUE constraint failed, e.g. two active routines with the same name.
 final class DuplicateException extends AppException {
-  const DuplicateException([super.message = 'That name is already in use.']);
+  const DuplicateException();
 }
 
+/// A CHECK or NOT NULL constraint failed: a value is out of range.
 final class InvalidDataException extends AppException {
-  const InvalidDataException([
-    super.message = 'Some values are out of the allowed range.',
-  ]);
+  const InvalidDataException();
 }
 
-final class PermissionException extends AppException {
-  const PermissionException()
-    : super("You don't have permission to do that. Try signing in again.");
+/// A FOREIGN KEY constraint (ON DELETE RESTRICT) blocked a delete because
+/// logged sets still point to the row.
+final class InUseException extends AppException {
+  const InUseException(this.setCount);
+
+  /// How many logged sets depend on the row.
+  final int setCount;
 }
 
-final class AuthFailedException extends AppException {
-  const AuthFailedException(super.message);
+/// The row does not exist (any more).
+final class NotFoundException extends AppException {
+  const NotFoundException();
 }
 
-final class NotSignedInException extends AppException {
-  const NotSignedInException() : super('Please sign in first.');
+/// Anything else (disk full, corrupted file, ...).
+final class StorageException extends AppException {
+  const StorageException([this.cause]);
+  final Object? cause;
+
+  @override
+  String toString() => 'StorageException: $cause';
 }
 
-final class UnknownException extends AppException {
-  const UnknownException([
-    super.message = 'Something went wrong. Please try again.',
-  ]);
+/// Maps any error thrown by SQLite to an [AppException].
+AppException mapError(Object error) {
+  if (error is AppException) return error;
+  if (error is DatabaseException) {
+    final message = error.toString();
+    if (error.isUniqueConstraintError()) return const DuplicateException();
+    if (message.contains('FOREIGN KEY constraint failed')) {
+      return const InUseException(0);
+    }
+    if (message.contains('CHECK constraint failed') ||
+        error.isNotNullConstraintError()) {
+      return const InvalidDataException();
+    }
+  }
+  return StorageException(error);
 }
-
-/// Maps any error thrown by Supabase or the network to an [AppException].
-///
-/// PostgreSQL codes: 23505 unique violation, 23514 check violation,
-/// 23503 foreign key violation, 42501 insufficient privilege (RLS).
-AppException mapError(Object error, {String? duplicateMessage}) {
-  return switch (error) {
-    AppException() => error,
-    SocketException() || TimeoutException() => const NetworkException(),
-    AuthRetryableFetchException() => const NetworkException(),
-    PostgrestException(code: '23505') => DuplicateException(
-      duplicateMessage ?? 'That name is already in use.',
-    ),
-    PostgrestException(code: '23514') => const InvalidDataException(),
-    PostgrestException(code: '23503') => const InvalidDataException(
-      'That item no longer exists. Refresh and try again.',
-    ),
-    PostgrestException(code: '42501') => const PermissionException(),
-    AuthException(:final code, :final message) => AuthFailedException(
-      _authMessage(code, message),
-    ),
-    _ => const UnknownException(),
-  };
-}
-
-String _authMessage(String? code, String fallback) => switch (code) {
-  'invalid_credentials' => 'Wrong email or password.',
-  'email_not_confirmed' =>
-    'Confirm your email first: open the link we sent you, then sign in.',
-  'user_already_exists' || 'email_exists' =>
-    'An account with this email already exists. Sign in instead.',
-  'weak_password' => 'That password is too weak. Use a longer one.',
-  'over_email_send_rate_limit' || 'over_request_rate_limit' =>
-    'Too many attempts. Wait a minute and try again.',
-  _ => fallback,
-};

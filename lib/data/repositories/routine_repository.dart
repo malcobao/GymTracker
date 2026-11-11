@@ -17,7 +17,7 @@ class ExerciseDraft {
   final int? targetSets;
   final int? targetReps;
 
-  Map<String, dynamic> toJson() => {
+  Map<String, Object?> toRow() => {
     'name': name.trim(),
     'muscle_group': muscleGroup?.dbValue,
     'target_sets': targetSets,
@@ -25,23 +25,47 @@ class ExerciseDraft {
   };
 }
 
-/// Routines and the exercises inside them. "Remove" archives instead of
-/// deleting, so logged history is kept.
+/// CRUD of the `routines` and `exercises` tables.
+///
+/// Removing has two levels:
+/// * archive: hides the row, keeps its history (can be restored);
+/// * delete: removes the row for good. If logged sets depend on it the
+///   database refuses (FOREIGN KEY ... ON DELETE RESTRICT) and the call
+///   returns [InUseException] with the number of sets, unless
+///   `withHistory` is true, which deletes those sets first.
 abstract class RoutineRepository {
-  Future<Result<List<Routine>>> listRoutines();
+  // ---- routines ----
+  Future<Result<List<Routine>>> listRoutines({bool archived = false});
+  Future<Result<Routine>> getRoutine(int routineId);
   Future<Result<Routine>> createRoutine(String name, {String? description});
-  Future<Result<void>> renameRoutine(String routineId, String name);
-  Future<Result<void>> archiveRoutine(String routineId);
+  Future<Result<void>> updateRoutine(
+    int routineId, {
+    required String name,
+    String? description,
+  });
+  Future<Result<void>> archiveRoutine(int routineId);
+  Future<Result<void>> restoreRoutine(int routineId);
+  Future<Result<void>> deleteRoutine(int routineId, {bool withHistory = false});
 
-  /// Active exercises of a routine, ordered by position.
-  Future<Result<List<Exercise>>> listExercises(String routineId);
-  Future<Result<Exercise>> addExercise(String routineId, ExerciseDraft draft);
-  Future<Result<void>> updateExercise(String exerciseId, ExerciseDraft draft);
-  Future<Result<void>> archiveExercise(String exerciseId);
+  // ---- exercises ----
+  /// Exercises of a routine ordered by position.
+  Future<Result<List<Exercise>>> listExercises(
+    int routineId, {
+    bool archived = false,
+  });
+
+  /// Every exercise (active and archived) with its routine name; used by
+  /// the statistics and report filters.
+  Future<Result<List<Exercise>>> listAllExercises();
+  Future<Result<Exercise>> addExercise(int routineId, ExerciseDraft draft);
+  Future<Result<void>> updateExercise(int exerciseId, ExerciseDraft draft);
+  Future<Result<void>> archiveExercise(int exerciseId);
+  Future<Result<void>> restoreExercise(int exerciseId);
+  Future<Result<void>> deleteExercise(
+    int exerciseId, {
+    bool withHistory = false,
+  });
 
   /// Saves a new order: [exerciseIds] first to last.
-  Future<Result<void>> reorderExercises(
-    String routineId,
-    List<String> exerciseIds,
-  );
+  Future<Result<void>> reorderExercises(int routineId, List<int> exerciseIds);
 }

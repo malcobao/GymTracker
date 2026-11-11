@@ -17,7 +17,8 @@ final class Empty<T> extends ViewState<T> {
   const Empty();
 }
 
+/// Loading failed; the screen shows a translated message for [error].
 final class Failed<T> extends ViewState<T> {
-  const Failed(this.message);
-  final String message;
+  const Failed(this.error);
+  final Exception error;
 }

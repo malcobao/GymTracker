@@ -4,20 +4,24 @@ import '../../data/repositories/routine_repository.dart';
 import '../../domain/models/enums.dart';
 import '../../domain/models/exercise.dart';
 import '../../domain/validation.dart';
+import '../core/labels.dart';
 
-/// Add or edit an exercise. Returns null if cancelled.
+/// Add or edit an exercise, validated while typing. Returns null if
+/// cancelled.
 Future<ExerciseDraft?> showExerciseDialog(
   BuildContext context, {
   Exercise? existing,
+  Iterable<String> takenNames = const [],
 }) => showDialog(
   context: context,
-  builder: (context) => _ExerciseDialog(existing: existing),
+  builder: (_) => _ExerciseDialog(existing: existing, takenNames: takenNames),
 );
 
 class _ExerciseDialog extends StatefulWidget {
-  const _ExerciseDialog({this.existing});
+  const _ExerciseDialog({required this.existing, required this.takenNames});
 
   final Exercise? existing;
+  final Iterable<String> takenNames;
 
   @override
   State<_ExerciseDialog> createState() => _ExerciseDialogState();
@@ -56,10 +60,15 @@ class _ExerciseDialogState extends State<_ExerciseDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final taken = widget.takenNames.where((n) => n != widget.existing?.name);
     return AlertDialog(
-      title: Text(widget.existing == null ? 'Add exercise' : 'Edit exercise'),
+      title: Text(
+        widget.existing == null ? l10n.addExercise : l10n.editExercise,
+      ),
       content: Form(
         key: _formKey,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -67,45 +76,53 @@ class _ExerciseDialogState extends State<_ExerciseDialog> {
               TextFormField(
                 controller: _name,
                 autofocus: widget.existing == null,
-                decoration: const InputDecoration(
-                  labelText: 'Name, e.g. Bench press',
-                ),
-                validator: Validation.requiredName,
+                maxLength: Validation.maxNameLength,
+                decoration: InputDecoration(labelText: l10n.exerciseNameHint),
+                validator: (v) => l10n.field(Validation.name(v, taken: taken)),
               ),
+              const SizedBox(height: 8),
               DropdownButtonFormField<MuscleGroup?>(
+                isExpanded: true,
                 initialValue: _group,
-                decoration: const InputDecoration(
-                  labelText: 'Muscle group (optional)',
+                decoration: InputDecoration(
+                  labelText: l10n.muscleGroupOptional,
                 ),
                 items: [
-                  const DropdownMenuItem(value: null, child: Text('None')),
+                  DropdownMenuItem(value: null, child: Text(l10n.muscleNone)),
                   for (final g in MuscleGroup.values)
-                    DropdownMenuItem(value: g, child: Text(g.label)),
+                    DropdownMenuItem(value: g, child: Text(l10n.muscle(g))),
                 ],
-                onChanged: (v) => setState(() => _group = v),
+                onChanged: (g) => setState(() => _group = g),
               ),
+              const SizedBox(height: 16),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: TextFormField(
                       controller: _sets,
-                      decoration: const InputDecoration(
-                        labelText: 'Target sets',
-                      ),
                       keyboardType: TextInputType.number,
-                      validator: (v) => Validation.optionalCount(v, max: 20),
+                      decoration: InputDecoration(labelText: l10n.targetSets),
+                      validator: (v) => l10n.field(
+                        Validation.optionalCount(
+                          v,
+                          max: Validation.maxTargetSets,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: TextFormField(
                       controller: _reps,
-                      decoration: const InputDecoration(
-                        labelText: 'Target reps',
-                      ),
                       keyboardType: TextInputType.number,
-                      validator: (v) => Validation.optionalCount(v, max: 100),
+                      decoration: InputDecoration(labelText: l10n.targetReps),
+                      validator: (v) => l10n.field(
+                        Validation.optionalCount(
+                          v,
+                          max: Validation.maxTargetReps,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -117,9 +134,9 @@ class _ExerciseDialogState extends State<_ExerciseDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+          child: Text(l10n.cancel),
         ),
-        FilledButton(onPressed: _confirm, child: const Text('Save')),
+        FilledButton(onPressed: _confirm, child: Text(l10n.save)),
       ],
     );
   }

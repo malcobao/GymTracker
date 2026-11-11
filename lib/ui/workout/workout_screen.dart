@@ -1,92 +1,91 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import '../../domain/models/user_profile.dart' show dateOnly;
+import '../../data/repositories/routine_repository.dart';
+import '../../data/repositories/workout_repository.dart';
+import '../../domain/models/enums.dart';
 import '../../domain/models/workout_set.dart';
 import '../../domain/validation.dart';
+import '../../utils/result.dart';
 import '../../utils/units.dart';
-import '../core/view_models/view_state.dart';
-import '../core/widgets/empty_view.dart';
-import '../core/widgets/error_view.dart';
-import '../core/widgets/loading_view.dart';
-import '../core/widgets/snack.dart';
+import '../core/app_theme.dart';
+import '../core/labels.dart';
+import '../core/view_models/session_controller.dart';
+import '../core/widgets/dialogs.dart';
+import '../core/widgets/state_views.dart';
 import 'workout_view_model.dart';
 
+/// Logs today's sets of one routine.
 class WorkoutScreen extends StatefulWidget {
-  const WorkoutScreen({
-    required this.viewModel,
-    required this.routineName,
-    super.key,
-  });
+  const WorkoutScreen({required this.routineId, this.day, super.key});
 
-  final WorkoutViewModel viewModel;
-  final String routineName;
+  final int routineId;
+
+  /// The day to log; today by default (tests pass a fixed day).
+  final DateTime? day;
 
   @override
   State<WorkoutScreen> createState() => _WorkoutScreenState();
 }
 
 class _WorkoutScreenState extends State<WorkoutScreen> {
-  WorkoutViewModel get vm => widget.viewModel;
+  late final vm = WorkoutViewModel(
+    routines: context.read<RoutineRepository>(),
+    workouts: context.read<WorkoutRepository>(),
+    routineId: widget.routineId,
+    day: widget.day,
+  )..load();
 
   @override
-  void initState() {
-    super.initState();
-    vm.load();
-  }
-
-  // The router may rebuild this page with a new view model (for example
-  // when returning from a pushed screen); load it, or it stays Loading.
-  @override
-  void didUpdateWidget(WorkoutScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.viewModel != widget.viewModel) widget.viewModel.load();
+  void dispose() {
+    vm.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.routineName),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(20),
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text('Workout of ${dateOnly(vm.day)}'),
+    final l10n = context.l10n;
+    final fmt = context.fmt;
+    return ListenableBuilder(
+      listenable: vm,
+      builder: (context, _) => Scaffold(
+        appBar: AppBar(
+          title: Text(vm.routine?.name ?? l10n.routine),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(24),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: AppTheme.space2),
+              child: Text(l10n.workoutOf(fmt.date(vm.day))),
+            ),
           ),
         ),
-      ),
-      body: ListenableBuilder(
-        listenable: vm,
-        builder: (context, _) => switch (vm.state) {
-          Loading() => const LoadingView(),
-          Failed(:final message) => ErrorView(
-            message: message,
-            onRetry: vm.load,
+        body: StateSwitcher(
+          state: vm.state,
+          onRetry: vm.load,
+          empty: EmptyView(message: l10n.noExercisesWorkout),
+          loaded: (items) => ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: AppTheme.space2),
+            itemCount: items.length,
+            itemBuilder: (context, i) => FadeSlideIn(
+              index: i,
+              child: _ExerciseCard(
+                key: ValueKey(items[i].exercise.id),
+                item: items[i],
+                vm: vm,
+              ),
+            ),
           ),
-          Empty() => const EmptyView(
-            message: 'Add exercises to this routine before training.',
-          ),
-          Loaded(data: final items) => ListView(
-            padding: const EdgeInsets.all(12),
-            children: [
-              for (final item in items)
-                _ExerciseCard(
-                  key: ValueKey(item.exercise.id),
-                  item: item,
-                  vm: vm,
-                ),
-            ],
-          ),
-        },
+        ),
       ),
     );
   }
 }
 
+/// One exercise: its logged sets and a form to log the next one.
 class _ExerciseCard extends StatefulWidget {
   const _ExerciseCard({required this.item, required this.vm, super.key});
 
-  final ExerciseWithSets item;
+  final WorkoutItem item;
   final WorkoutViewModel vm;
 
   @override
@@ -101,17 +100,12 @@ class _ExerciseCardState extends State<_ExerciseCard> {
   @override
   void initState() {
     super.initState();
-    _prefillFromLastSet();
-  }
-
-  /// Suggests the last set's numbers, which is what people usually repeat.
-  void _prefillFromLastSet() {
-    final sets = widget.item.sets;
-    if (sets.isEmpty) return;
-    final last = sets.last;
-    final value = Units.fromKg(last.weightKg, widget.vm.unit);
-    _weight.text = value.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '');
-    _reps.text = last.reps.toString();
+    // Start from the last set: the next set is usually the same.
+    if (widget.item.sets.lastOrNull case final last?) {
+      final unit = context.read<SessionController>().unit;
+      _weight.text = _plain(Units.fromKg(last.weightKg, unit));
+      _reps.text = last.reps.toString();
+    }
   }
 
   @override
@@ -121,109 +115,114 @@ class _ExerciseCardState extends State<_ExerciseCard> {
     super.dispose();
   }
 
-  String? _weightValidator(String? v) {
-    final unit = widget.vm.unit;
-    return Validation.range(
-      v,
-      min: 0,
-      max: double.parse(
-        Units.fromKg(Validation.maxLiftKg, unit).toStringAsFixed(0),
-      ),
-      unit: unit.dbValue,
-    );
-  }
+  static String _plain(double value) =>
+      value.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '');
 
   Future<void> _log() async {
     if (!_formKey.currentState!.validate()) return;
-    final error = await widget.vm.logSet(
+    final unit = context.read<SessionController>().unit;
+    final l10n = context.l10n;
+    final result = await widget.vm.logSet(
       widget.item.exercise.id,
-      Validation.parseDecimal(_weight.text)!,
+      Units.toKg(Validation.parseDecimal(_weight.text)!, unit),
       int.parse(_reps.text.trim()),
     );
-    if (mounted) showMessage(context, error);
+    if (!mounted) return;
+    showMessage(context, switch (result) {
+      Ok(:final value) => l10n.setLogged(value.setNumber),
+      Error(:final error) => l10n.error(error),
+    });
   }
 
-  Future<void> _delete(WorkoutSet set) async {
-    final error = await widget.vm.deleteSet(set);
-    if (mounted) showMessage(context, error ?? 'Set ${set.setNumber} deleted');
+  Future<void> _editSet(WorkoutSet set) async {
+    final l10n = context.l10n;
+    final unit = context.read<SessionController>().unit;
+    final edited = await showDialog<({double weightKg, int reps})>(
+      context: context,
+      builder: (_) => _SetDialog(set: set, unit: unit),
+    );
+    if (edited == null || !mounted) return;
+    final result = await widget.vm.updateSet(
+      set.id,
+      edited.weightKg,
+      edited.reps,
+    );
+    if (!mounted) return;
+    showMessage(context, switch (result) {
+      Ok() => l10n.setUpdated,
+      Error(:final error) => l10n.error(error),
+    });
+  }
+
+  Future<void> _deleteSet(WorkoutSet set) async {
+    final l10n = context.l10n;
+    final result = await widget.vm.deleteSet(set.id);
+    if (!mounted) return;
+    showMessage(context, switch (result) {
+      Ok() => l10n.setDeleted(set.setNumber),
+      Error(:final error) => l10n.error(error),
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final exercise = widget.item.exercise;
-    final unit = widget.vm.unit;
+    final l10n = context.l10n;
+    final fmt = context.fmt;
     final theme = Theme.of(context);
+    final exercise = widget.item.exercise;
+    final target = l10n.target(exercise);
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(AppTheme.space4),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(exercise.name, style: theme.textTheme.titleMedium),
-            if (exercise.targetLabel != null)
-              Text(
-                'Target: ${exercise.targetLabel}',
-                style: theme.textTheme.bodySmall,
+            if (target != null)
+              Text(l10n.targetPrefix(target), style: theme.textTheme.bodySmall),
+            AnimatedSize(
+              duration: AppTheme.medium,
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: Column(
+                children: [
+                  for (final set in widget.item.sets)
+                    ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      onTap: () => _editSet(set),
+                      leading: CircleAvatar(
+                        radius: 14,
+                        backgroundColor: theme.colorScheme.primaryContainer,
+                        child: Text('${set.setNumber}'),
+                      ),
+                      title: Text('${fmt.weight(set.weightKg)} × ${set.reps}'),
+                      trailing: IconButton(
+                        tooltip: l10n.deleteSet(set.setNumber),
+                        icon: const Icon(Icons.close),
+                        onPressed: widget.vm.saving
+                            ? null
+                            : () => _deleteSet(set),
+                      ),
+                    ),
+                ],
               ),
-            const SizedBox(height: 8),
-            for (final set in widget.item.sets)
-              ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(
-                  radius: 14,
-                  child: Text('${set.setNumber}'),
-                ),
-                title: Text(
-                  '${Units.format(set.weightKg, unit)} × ${set.reps}',
-                ),
-                trailing: IconButton(
-                  tooltip: 'Delete set ${set.setNumber}',
-                  icon: const Icon(Icons.close),
-                  onPressed: () => _delete(set),
-                ),
-              ),
+            ),
+            const SizedBox(height: AppTheme.space2),
             Form(
               key: _formKey,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _weight,
-                      decoration: InputDecoration(
-                        labelText: 'Weight',
-                        suffixText: unit.dbValue,
-                        isDense: true,
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      validator: _weightValidator,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _reps,
-                      decoration: const InputDecoration(
-                        labelText: 'Reps',
-                        isDense: true,
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: Validation.reps,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
+                  Expanded(child: _WeightField(controller: _weight)),
+                  const SizedBox(width: AppTheme.space2),
+                  Expanded(child: _RepsField(controller: _reps)),
+                  const SizedBox(width: AppTheme.space2),
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
-                    child: ListenableBuilder(
-                      listenable: widget.vm,
-                      builder: (context, _) => FilledButton(
-                        onPressed: widget.vm.saving ? null : _log,
-                        child: const Text('Log set'),
-                      ),
+                    child: FilledButton(
+                      onPressed: widget.vm.saving ? null : _log,
+                      child: Text(l10n.logSet),
                     ),
                   ),
                 ],
@@ -232,6 +231,116 @@ class _ExerciseCardState extends State<_ExerciseCard> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Weight in the user's unit, limited like the database (0–1000 kg).
+class _WeightField extends StatelessWidget {
+  const _WeightField({required this.controller});
+
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final unit = context.watch<SessionController>().unit;
+    final l10n = context.l10n;
+    return TextFormField(
+      controller: controller,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      decoration: InputDecoration(
+        labelText: l10n.weight,
+        suffixText: unit.dbValue,
+      ),
+      validator: (v) => l10n.field(
+        Validation.decimal(
+          v,
+          min: 0,
+          max: Units.fromKg(Validation.maxLiftKg, unit).floorToDouble(),
+        ),
+      ),
+    );
+  }
+}
+
+class _RepsField extends StatelessWidget {
+  const _RepsField({required this.controller});
+
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return TextFormField(
+      controller: controller,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(labelText: l10n.reps),
+      validator: (v) => l10n.field(Validation.reps(v)),
+    );
+  }
+}
+
+/// Edits the weight and reps of a logged set.
+class _SetDialog extends StatefulWidget {
+  const _SetDialog({required this.set, required this.unit});
+
+  final WorkoutSet set;
+  final WeightUnit unit;
+
+  @override
+  State<_SetDialog> createState() => _SetDialogState();
+}
+
+class _SetDialogState extends State<_SetDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final _weight = TextEditingController(
+    text: _ExerciseCardState._plain(
+      Units.fromKg(widget.set.weightKg, widget.unit),
+    ),
+  );
+  late final _reps = TextEditingController(text: '${widget.set.reps}');
+
+  @override
+  void dispose() {
+    _weight.dispose();
+    _reps.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    if (!_formKey.currentState!.validate()) return;
+    Navigator.of(context).pop((
+      weightKg: Units.toKg(Validation.parseDecimal(_weight.text)!, widget.unit),
+      reps: int.parse(_reps.text.trim()),
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return AlertDialog(
+      title: Text(l10n.editSet(widget.set.setNumber)),
+      content: Form(
+        key: _formKey,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _WeightField(controller: _weight),
+            const SizedBox(height: AppTheme.space3),
+            _RepsField(controller: _reps),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.cancel),
+        ),
+        FilledButton(onPressed: _save, child: Text(l10n.save)),
+      ],
     );
   }
 }

@@ -1,161 +1,263 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
+import '../../data/errors/app_exception.dart';
+import '../../data/repositories/routine_repository.dart';
 import '../../domain/models/exercise.dart';
 import '../../routing/routes.dart';
-import '../core/view_models/view_state.dart';
-import '../core/widgets/empty_view.dart';
-import '../core/widgets/error_view.dart';
-import '../core/widgets/loading_view.dart';
-import '../core/widgets/snack.dart';
-import '../core/widgets/text_prompt_dialog.dart';
+import '../core/app_theme.dart';
+import '../core/labels.dart';
+import '../core/widgets/dialogs.dart';
+import '../core/widgets/state_views.dart';
 import 'exercise_dialog.dart';
 import 'routine_detail_view_model.dart';
 
-/// The exercises of one routine. Drag to reorder; start today's workout.
-class RoutineDetailScreen extends StatefulWidget {
-  const RoutineDetailScreen({
-    required this.viewModel,
-    required this.title,
-    super.key,
-  });
+enum _Action { edit, archive, restore, delete }
 
-  final RoutineDetailViewModel viewModel;
-  final String title;
+/// The exercises of one routine: add, edit, reorder (drag), archive,
+/// restore, delete; start today's workout.
+class RoutineDetailScreen extends StatefulWidget {
+  const RoutineDetailScreen({required this.routineId, super.key});
+
+  final int routineId;
 
   @override
   State<RoutineDetailScreen> createState() => _RoutineDetailScreenState();
 }
 
 class _RoutineDetailScreenState extends State<RoutineDetailScreen> {
-  RoutineDetailViewModel get vm => widget.viewModel;
+  late final vm = RoutineDetailViewModel(
+    context.read<RoutineRepository>(),
+    routineId: widget.routineId,
+  )..load();
 
   @override
-  void initState() {
-    super.initState();
-    vm.load();
-  }
-
-  // The router may rebuild this page with a new view model (for example
-  // when returning from a pushed screen); load it, or it stays Loading.
-  @override
-  void didUpdateWidget(RoutineDetailScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.viewModel != widget.viewModel) widget.viewModel.load();
+  void dispose() {
+    vm.dispose();
+    super.dispose();
   }
 
   Future<void> _add() async {
-    final draft = await showExerciseDialog(context);
+    final l10n = context.l10n;
+    final draft = await showExerciseDialog(context, takenNames: vm.activeNames);
     if (draft == null || !mounted) return;
-    final message = await vm.add(draft);
-    if (mounted) showMessage(context, message);
+    _report(await vm.add(draft), l10n.exerciseAdded);
   }
 
   Future<void> _edit(Exercise exercise) async {
-    final draft = await showExerciseDialog(context, existing: exercise);
+    final l10n = context.l10n;
+    final draft = await showExerciseDialog(
+      context,
+      existing: exercise,
+      takenNames: vm.activeNames,
+    );
     if (draft == null || !mounted) return;
-    final message = await vm.update(exercise.id, draft);
-    if (mounted) showMessage(context, message);
+    _report(await vm.update(exercise.id, draft), l10n.exerciseUpdated);
   }
 
-  Future<void> _archive(Exercise exercise) async {
+  Future<void> _delete(Exercise exercise) async {
+    final l10n = context.l10n;
     final ok = await confirmAction(
       context,
-      title: 'Remove "${exercise.name}"?',
-      message: 'It leaves this routine. Its logged sets are kept.',
-      confirmLabel: 'Remove',
+      title: l10n.deleteTitle(exercise.name),
+      message: l10n.deleteExerciseMessage,
+      confirmLabel: l10n.delete,
+      destructive: true,
     );
     if (!ok || !mounted) return;
-    final message = await vm.archive(exercise.id);
-    if (mounted) showMessage(context, message);
+    final error = await vm.delete(exercise.id);
+    if (error is InUseException && mounted) {
+      final choice = await askInUse(
+        context,
+        name: exercise.name,
+        setCount: error.setCount,
+      );
+      if (!mounted) return;
+      switch (choice) {
+        case InUseChoice.archive:
+          _report(await vm.archive(exercise.id), l10n.exerciseArchived);
+        case InUseChoice.deleteEverything:
+          _report(
+            await vm.delete(exercise.id, withHistory: true),
+            l10n.exerciseDeleted,
+          );
+        case null:
+          return;
+      }
+      return;
+    }
+    _report(error, l10n.exerciseDeleted);
+  }
+
+  Future<void> _onAction(_Action action, Exercise exercise) async {
+    final l10n = context.l10n;
+    switch (action) {
+      case _Action.edit:
+        await _edit(exercise);
+      case _Action.archive:
+        _report(await vm.archive(exercise.id), l10n.exerciseArchived);
+      case _Action.restore:
+        _report(await vm.restore(exercise.id), l10n.exerciseRestored);
+      case _Action.delete:
+        await _delete(exercise);
+    }
+  }
+
+  void _report(Exception? error, String success) {
+    if (!mounted) return;
+    showMessage(context, error == null ? success : context.l10n.error(error));
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-        actions: [
-          IconButton(
-            tooltip: 'Add exercise',
-            icon: const Icon(Icons.add),
-            onPressed: _add,
+    final l10n = context.l10n;
+    return ListenableBuilder(
+      listenable: vm,
+      builder: (context, _) => Scaffold(
+        appBar: AppBar(
+          title: Text(
+            vm.showArchived
+                ? l10n.archivedExercises
+                : (vm.routine?.name ?? l10n.routine),
           ),
-        ],
-      ),
-      body: ListenableBuilder(
-        listenable: vm,
-        builder: (context, _) => switch (vm.state) {
-          Loading() => const LoadingView(),
-          Failed(:final message) => ErrorView(
-            message: message,
-            onRetry: vm.load,
-          ),
-          Empty() => EmptyView(
-            message: 'This routine has no exercises yet.',
-            actionLabel: 'Add exercise',
-            onAction: _add,
-          ),
-          Loaded(data: final exercises) => Column(
+          actions: [
+            IconButton(
+              tooltip: l10n.archivedExercises,
+              isSelected: vm.showArchived,
+              icon: const Icon(Icons.inventory_2_outlined),
+              selectedIcon: const Icon(Icons.inventory_2),
+              onPressed: vm.toggleArchived,
+            ),
+            if (!vm.showArchived)
+              IconButton(
+                tooltip: l10n.addExercise,
+                icon: const Icon(Icons.add),
+                onPressed: _add,
+              ),
+          ],
+        ),
+        body: StateSwitcher(
+          state: vm.state,
+          onRetry: vm.load,
+          empty: vm.showArchived
+              ? EmptyView(message: l10n.noArchivedExercises)
+              : EmptyView(
+                  message: l10n.noExercises,
+                  icon: Icons.fitness_center,
+                  actionLabel: l10n.addExercise,
+                  onAction: _add,
+                ),
+          loaded: (exercises) => Column(
             children: [
               Expanded(
                 child: ReorderableListView.builder(
+                  padding: const EdgeInsets.only(top: AppTheme.space2),
+                  buildDefaultDragHandles: !vm.showArchived,
                   itemCount: exercises.length,
                   onReorderItem: (from, to) async {
-                    final message = await vm.move(from, to);
-                    if (mounted) showMessage(this.context, message);
+                    final error = await vm.move(from, to);
+                    if (error != null) _report(error, '');
                   },
-                  itemBuilder: (context, i) {
-                    final e = exercises[i];
-                    final details = [
-                      ?e.muscleGroup?.label,
-                      ?e.targetLabel,
-                    ].join(' · ');
-                    return ListTile(
-                      key: ValueKey(e.id),
-                      title: Text(e.name),
-                      subtitle: details.isEmpty ? null : Text(details),
-                      onTap: () => _edit(e),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            tooltip: 'Progress',
-                            icon: const Icon(Icons.show_chart),
-                            onPressed: () =>
-                                context.push(Routes.progress(e.id), extra: e),
-                          ),
-                          IconButton(
-                            tooltip: 'Remove',
-                            icon: const Icon(Icons.delete_outline),
-                            onPressed: () => _archive(e),
-                          ),
-                          const SizedBox(width: 24),
-                        ],
+                  itemBuilder: (context, i) => FadeSlideIn(
+                    key: ValueKey(exercises[i].id),
+                    index: i,
+                    child: _ExerciseTile(
+                      exercise: exercises[i],
+                      onTap: exercises[i].archived
+                          ? null
+                          : () => _edit(exercises[i]),
+                      onProgress: () => context.push(
+                        Routes.progress(exercises[i].id),
+                        extra: exercises[i].name,
                       ),
-                    );
-                  },
-                ),
-              ),
-              SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      icon: const Icon(Icons.play_arrow),
-                      label: const Text("Start today's workout"),
-                      onPressed: () => context.push(
-                        Routes.workout(vm.routineId),
-                        extra: widget.title,
-                      ),
+                      onAction: (a) => _onAction(a, exercises[i]),
                     ),
                   ),
                 ),
               ),
+              if (!vm.showArchived)
+                SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppTheme.space4),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        icon: const Icon(Icons.play_arrow_rounded),
+                        label: Text(l10n.startWorkout),
+                        onPressed: () async {
+                          await context.push(Routes.workout(vm.routineId));
+                          await vm.load();
+                        },
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
-        },
+        ),
+      ),
+    );
+  }
+}
+
+class _ExerciseTile extends StatelessWidget {
+  const _ExerciseTile({
+    required this.exercise,
+    required this.onTap,
+    required this.onProgress,
+    required this.onAction,
+  });
+
+  final Exercise exercise;
+  final VoidCallback? onTap;
+  final VoidCallback onProgress;
+  final ValueChanged<_Action> onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final details = [
+      if (exercise.muscleGroup != null) l10n.muscle(exercise.muscleGroup),
+      ?l10n.target(exercise),
+    ].join(' · ');
+    return Card(
+      child: ListTile(
+        onTap: onTap,
+        title: Text(
+          exercise.name,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: details.isEmpty ? null : Text(details),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              tooltip: l10n.progressTooltip,
+              icon: const Icon(Icons.show_chart),
+              onPressed: onProgress,
+            ),
+            PopupMenuButton<_Action>(
+              tooltip: l10n.moreOptions,
+              onSelected: onAction,
+              itemBuilder: (context) => [
+                if (!exercise.archived) ...[
+                  PopupMenuItem(value: _Action.edit, child: Text(l10n.edit)),
+                  PopupMenuItem(
+                    value: _Action.archive,
+                    child: Text(l10n.archive),
+                  ),
+                ] else
+                  PopupMenuItem(
+                    value: _Action.restore,
+                    child: Text(l10n.restore),
+                  ),
+                PopupMenuItem(value: _Action.delete, child: Text(l10n.delete)),
+              ],
+            ),
+            if (!exercise.archived) const SizedBox(width: 32),
+          ],
+        ),
       ),
     );
   }
